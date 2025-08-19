@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Iniciar Sesión</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #eb74d7, #e5acd4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-container {
+      background: white;
+      padding: 40px 35px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+
+    .login-container h2 {
+      color: #b84d88;
+      margin-bottom: 25px;
+      font-size: 28px;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 12px 14px;
+      margin: 10px 0 15px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: 0.3s ease;
+    }
+
+    .login-container input:focus {
+      border-color: #e66e96;
+      outline: none;
+      box-shadow: 0 0 5px #ffaad9;
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      background-color: #e66ea6;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .login-container button:hover {
+      background-color: #b84d88;
+    }
+
+    #mensaje {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #e53935;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>Login</h2>
+
+    <form id="formLogin">
+      <input type="email" id="email" placeholder="Correo electrónico" required>
+      <input type="password" id="clave" placeholder="Contraseña" required>
+      <button type="submit">Iniciar sesión</button>
+      <input type="button" value="ir a registro" onclick="iraregistro()">
+    </form>
+
+    <p id="mensaje"></p>
+  </div>
+
+  <script>
+    function iraregistro(){
+            location.href="/registro?token=" + localStorage.getItem("token");
+        }
+
+    document.getElementById('formLogin').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const datos = {
+        email: document.getElementById('email').value,
+        clave: document.getElementById('clave').value
+      };
+
+      try {
+        const respuesta = await fetch('/api/usuarios/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(datos)
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok) {
+          document.getElementById('mensaje').innerText = resultado.error || 'Credenciales inválidas';
+          return;
+        }
+
+        // Guardar el token en localStorage
+        localStorage.setItem('token', resultado.token);
+        document.getElementById('mensaje').innerText = '¡Inicio de sesión exitoso!';
+
+        // Redireccionar o continuar lógica
+        // window.location.href = 'dashboard.html'; // si aplica
+      const token = localStorage.getItem('token');
+      location.href = `/index?token=${encodeURIComponent(token)}`;
+      } catch (error) {
+        console.error('Error al iniciar sesión:', error);
+        document.getElementById('mensaje').innerText = 'Ocurrió un error en el servidor.';
+      }
+    });
+  </script>
+
+</body>
+</html>
