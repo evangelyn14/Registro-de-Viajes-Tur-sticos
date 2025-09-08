@@ -16,6 +16,10 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/reservas', require('./routes/reservas'));
 
 
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.get('/registro', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'registro.html'));
 });

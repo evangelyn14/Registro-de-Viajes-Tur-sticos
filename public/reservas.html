@@ -1,0 +1,373 @@
+<!-- File: reservas.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mis Reservas</title>
+  <style>
+    body{font-family:Inter, system-ui, -apple-system,Segoe UI, Roboto, 'Helvetica Neue', Arial; margin:0;padding:20px;background:#f7fafc}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(12,20,40,0.06);margin-bottom:12px}
+    .small{font-size:13px;color:#666}
+    button{cursor:pointer;padding:8px 12px;border-radius:8px;border:0;font-size:14px}
+    .btn-danger{background:#e53e3e;color:white}
+    .btn-warning{background:#d69e2e;color:white}
+    .btn-primary{background:#2b6cb0;color:white}
+    .btn-ghost{background:transparent;border:1px solid #ddd}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000}
+    .modal-content{background:#fff;padding:20px;border-radius:10px;width:400px;max-height:90vh;overflow:auto}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .close{font-size:28px;font-weight:bold;cursor:pointer;color:#999}
+    .close:hover{color:#333}
+    label{display:block;font-size:14px;margin-top:12px;margin-bottom:4px;font-weight:500}
+    input, select{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px;box-sizing:border-box}
+    .form-actions{margin-top:20px;display:flex;gap:10px;justify-content:flex-end}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mis reservas</h1>
+    <div>
+      <button class="btn-primary" onclick="openReservaModal()">➕ Nueva Reserva</button>
+      <button class="btn-ghost" onclick="location.href='/'">Inicio</button>
+      <button class="btn-ghost" onclick="location.href='/tours'">Ver tours</button>
+      <button class="btn-ghost" id="authBtn" onclick="handleAuth()">Iniciar Sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="message" style="margin-bottom:12px"></div>
+    <div id="reservas"></div>
+  </main>
+
+  <!-- Modal para crear/editar reservas -->
+  <div id="reservaModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Nueva Reserva</h3>
+        <span class="close" onclick="closeReservaModal()">&times;</span>
+      </div>
+      <form id="reservaForm">
+        <input type="hidden" id="reservaId" />
+        
+        <label for="tourSelect">Tour:</label>
+        <select id="tourSelect" required>
+          <option value="">Selecciona un tour...</option>
+        </select>
+
+        <label for="cantidadPersonas">Cantidad de personas:</label>
+        <input type="number" id="cantidadPersonas" min="1" max="20" required />
+
+        <label for="estado">Estado:</label>
+        <select id="estado" required>
+          <option value="pendiente">Pendiente</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" onclick="closeReservaModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="submitBtn">Crear Reserva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    async function fetchReservas(){
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/reservas',{ headers: { 'Authorization': token ? 'Bearer '+token : '' }});
+      if(!res.ok){ showMessage('Error al cargar reservas.',false); return; }
+      const reservas = await res.json();
+      renderReservas(reservas);
+    }
+
+    function renderReservas(reservas){
+      const container = document.getElementById('reservas');
+      container.innerHTML = '';
+      if(!Array.isArray(reservas) || reservas.length===0){ container.innerHTML = '<p>No tienes reservas.</p>'; return; }
+      reservas.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const fechaR = r.fechaReserva ? new Date(r.fechaReserva).toLocaleString() : '';
+        const tourName = r.tour && (r.tour.nombre || r.tour) ;
+        const estadoColor = r.estado === 'confirmada' ? 'green' : r.estado === 'cancelada' ? 'red' : 'orange';
+        
+        const actionsHtml = isAuthenticated ? 
+          `<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn-warning" onclick="editarReserva('${r._id}')">Editar</button>
+            <button class="btn-danger" onclick="cancelarReserva('${r._id}')">Eliminar</button>
+          </div>` : 
+          `<div style="margin-top:12px; text-align:center">
+            <small style="color:#999; font-style:italic;">Inicia sesión para gestionar reservas</small>
+          </div>`;
+
+        card.innerHTML = `
+          <h3>${escapeHtml(tourName || 'Tour')}</h3>
+          <div class="small">Reservado: ${fechaR} • Personas: ${r.cantidadPersonas} • <span style="color: ${estadoColor}; font-weight: bold">Estado: ${escapeHtml(r.estado || '')}</span></div>
+          ${actionsHtml}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    let allReservas = [];
+    let allTours = [];
+    let isAuthenticated = false;
+
+    // Verificar si el usuario está autenticado
+    function checkAuthentication() {
+      const token = localStorage.getItem('token');
+      isAuthenticated = !!token;
+      
+      if (!isAuthenticated) {
+        showMessage('Debes iniciar sesión para ver tus reservas', false);
+        hideActionButtons();
+        document.getElementById('reservas').innerHTML = '<div class="card"><p>Debes <a href="/login" style="color:#2b6cb0; text-decoration:none">iniciar sesión</a> para ver tus reservas.</p></div>';
+      } else {
+        showActionButtons();
+      }
+      
+      return isAuthenticated;
+    }
+
+    function hideActionButtons() {
+      const newReservaBtn = document.querySelector('.btn-primary');
+      if (newReservaBtn && newReservaBtn.textContent.includes('Nueva Reserva')) {
+        newReservaBtn.style.display = 'none';
+      }
+    }
+
+    function showActionButtons() {
+      const newReservaBtn = document.querySelector('.btn-primary');
+      if (newReservaBtn && newReservaBtn.textContent.includes('Nueva Reserva')) {
+        newReservaBtn.style.display = 'inline-block';
+      }
+      
+      const authBtn = document.getElementById('authBtn');
+      if (authBtn) {
+        authBtn.textContent = 'Cerrar Sesión';
+        authBtn.style.backgroundColor = '#e53e3e';
+        authBtn.style.color = 'white';
+      }
+    }
+
+    function handleAuth() {
+      if (isAuthenticated) {
+        localStorage.removeItem('token');
+        showMessage('Sesión cerrada exitosamente');
+        setTimeout(() => location.href = '/login', 1500);
+      } else {
+        location.href = '/login';
+      }
+    }
+
+    function redirectToLogin() {
+      if (!isAuthenticated) {
+        showMessage('Debes iniciar sesión para realizar esta acción', false);
+        setTimeout(() => {
+          location.href = '/login';
+        }, 2000);
+        return true;
+      }
+      return false;
+    }
+
+    async function fetchTours() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/tours', { headers: { 'Authorization': token ? 'Bearer ' + token : '' }});
+        if (res.ok) {
+          allTours = await res.json();
+          console.log('Tours cargados:', allTours.length);
+          populateTourSelect();
+        } else {
+          console.error('Error al cargar tours:', res.status);
+          showMessage('Error al cargar tours disponibles', false);
+        }
+      } catch (error) {
+        console.error('Error al cargar tours:', error);
+        showMessage('Error de conexión al cargar tours', false);
+      }
+    }
+
+    function populateTourSelect() {
+      const select = document.getElementById('tourSelect');
+      select.innerHTML = '<option value="">Selecciona un tour...</option>';
+      console.log('Poblando select con tours:', allTours);
+      
+      allTours.forEach(tour => {
+        const option = document.createElement('option');
+        option.value = tour._id;
+        option.textContent = `${tour.nombre} - $${tour.precio}`;
+        select.appendChild(option);
+      });
+      
+      console.log('Select poblado con', allTours.length, 'tours');
+    }
+
+    function openReservaModal(reservaId = null) {
+      if (redirectToLogin()) return;
+      
+      const modal = document.getElementById('reservaModal');
+      const title = document.getElementById('modalTitle');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      if (reservaId) {
+        const reserva = allReservas.find(r => r._id === reservaId);
+        if (reserva) {
+          title.textContent = 'Editar Reserva';
+          submitBtn.textContent = 'Actualizar Reserva';
+          document.getElementById('reservaId').value = reservaId;
+          document.getElementById('tourSelect').value = reserva.tour._id || reserva.tour;
+          document.getElementById('cantidadPersonas').value = reserva.cantidadPersonas;
+          document.getElementById('estado').value = reserva.estado;
+        }
+      } else {
+        title.textContent = 'Nueva Reserva';
+        submitBtn.textContent = 'Crear Reserva';
+        document.getElementById('reservaForm').reset();
+        document.getElementById('reservaId').value = '';
+        document.getElementById('estado').value = 'pendiente';
+      }
+      
+      modal.style.display = 'flex';
+    }
+
+    function closeReservaModal() {
+      document.getElementById('reservaModal').style.display = 'none';
+      document.getElementById('reservaForm').reset();
+    }
+
+    function editarReserva(id) {
+      if (redirectToLogin()) return;
+      openReservaModal(id);
+    }
+
+    async function cancelarReserva(id){
+      if (redirectToLogin()) return;
+      if(!confirm('¿Estás seguro de eliminar esta reserva?')) return;
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/reservas/'+id,{ method:'DELETE', headers: { 'Authorization': token ? 'Bearer '+token : '' }});
+      if(!res.ok){ showMessage('Error al eliminar reserva.', false); return; }
+      showMessage('Reserva eliminada correctamente');
+      fetchReservas();
+    }
+
+    document.getElementById('reservaForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const reservaId = document.getElementById('reservaId').value;
+      const tourId = document.getElementById('tourSelect').value;
+      const cantidadPersonas = document.getElementById('cantidadPersonas').value;
+      const estado = document.getElementById('estado').value;
+
+      if (!tourId || !cantidadPersonas) {
+        showMessage('Por favor completa todos los campos requeridos.', false);
+        return;
+      }
+
+      const reservaData = {
+        tour: tourId,
+        cantidadPersonas: parseInt(cantidadPersonas),
+        estado: estado
+      };
+
+      console.log('Enviando datos de reserva:', reservaData);
+
+      try {
+        const token = localStorage.getItem('token');
+        console.log('Token disponible:', !!token);
+        
+        const method = reservaId ? 'PUT' : 'POST';
+        const url = reservaId ? `/api/reservas/${reservaId}` : '/api/reservas';
+        
+        console.log('Método:', method, 'URL:', url);
+        
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? 'Bearer ' + token : ''
+          },
+          body: JSON.stringify(reservaData)
+        });
+
+        if (response.ok) {
+          const message = reservaId ? 'Reserva actualizada correctamente' : 'Reserva creada correctamente';
+          showMessage(message);
+          closeReservaModal();
+          fetchReservas();
+        } else {
+          const errorText = await response.text();
+          console.error('Error response:', response.status, errorText);
+          
+          try {
+            const error = JSON.parse(errorText);
+            showMessage(error.error || error.message || `Error ${response.status}`, false);
+          } catch {
+            showMessage(`Error ${response.status}: ${errorText}`, false);
+          }
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Error de conexión: ' + error.message, false);
+      }
+    });
+
+    // Cerrar modal al hacer clic fuera de él
+    window.onclick = function(event) {
+      const modal = document.getElementById('reservaModal');
+      if (event.target === modal) {
+        closeReservaModal();
+      }
+    }
+
+    function showMessage(msg, ok=true){
+      const el = document.getElementById('message');
+      el.textContent = msg; el.style.color = ok ? 'green' : 'red';
+      setTimeout(()=> el.textContent='',3500);
+    }
+
+    function escapeHtml(unsafe){
+      return String(unsafe)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#039;');
+    }
+
+    async function fetchReservas(){
+      if (!isAuthenticated) return;
+      
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/reservas',{ headers: { 'Authorization': token ? 'Bearer '+token : '' }});
+      
+      if(!res.ok){ 
+        if (res.status === 401 || res.status === 403) {
+          showMessage('Sesión expirada. Redirigiendo al login...', false);
+          localStorage.removeItem('token');
+          setTimeout(() => location.href = '/login', 2000);
+        } else {
+          showMessage('Error al cargar reservas.', false);
+        }
+        return; 
+      }
+      
+      allReservas = await res.json();
+      renderReservas(allReservas);
+    }
+
+    // Inicializar la página
+    checkAuthentication();
+    if (isAuthenticated) {
+      fetchReservas();
+      fetchTours();
+    } else {
+      console.log('Usuario no autenticado, no se cargan datos');
+    }
+  </script>
+</body>
+</html>

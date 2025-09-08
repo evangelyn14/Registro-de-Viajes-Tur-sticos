@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gestión de Tours</title>
+  <style>
+    body{
+      font-family:Inter, system-ui, -apple-system,Segoe UI, Roboto, 'Helvetica Neue', Arial; 
+      margin:0;
+      padding:20px;
+      background:#f7fafc
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:20px
+    }
+    .card{
+      background:#fff;
+      border-radius:10px;
+      padding:18px;
+      box-shadow:0 6px 18px rgba(12,20,40,0.08);
+      margin-bottom:16px
+    }
+    .tours-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+      gap:16px
+    }
+    .small{
+      font-size:13px;
+      color:#666;
+      margin:8px 0
+    }
+    button{
+      cursor:pointer;
+      padding:10px 16px;
+      border-radius:8px;
+      border:0;
+      font-size:14px;
+      font-weight:500;
+      transition:all 0.2s
+    }
+    .btn-primary{
+      background:#2b6cb0;
+      color:white
+    }
+    .btn-primary:hover{
+      background:#2c5aa0
+    }
+    .btn-warning{
+      background:#d69e2e;
+      color:white
+    }
+    .btn-warning:hover{
+      background:#b7791f
+    }
+    .btn-danger{
+      background:#e53e3e;
+      color:white
+    }
+    .btn-danger:hover{
+      background:#c53030
+    }
+    .btn-ghost{
+      background:transparent;
+      border:1px solid #ddd;
+      color:#666
+    }
+    .btn-ghost:hover{
+      background:#f7fafc;
+      border-color:#999
+    }
+    .modal{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:1000
+    }
+    .modal-content{
+      background:#fff;
+      padding:24px;
+      border-radius:12px;
+      width:450px;
+      max-height:90vh;
+      overflow:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,0.3)
+    }
+    .modal-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:20px;
+      padding-bottom:12px;
+      border-bottom:1px solid #eee
+    }
+    .close{
+      font-size:28px;
+      font-weight:bold;
+      cursor:pointer;
+      color:#999;
+      line-height:1
+    }
+    .close:hover{
+      color:#333
+    }
+    label{
+      display:block;
+      font-size:14px;
+      margin-top:16px;
+      margin-bottom:6px;
+      font-weight:600;
+      color:#333
+    }
+    input, textarea{
+      width:100%;
+      padding:12px;
+      border-radius:8px;
+      border:1px solid #ddd;
+      font-size:14px;
+      box-sizing:border-box;
+      font-family:inherit
+    }
+    textarea{
+      resize:vertical;
+      min-height:80px
+    }
+    input:focus, textarea:focus{
+      border-color:#2b6cb0;
+      outline:none;
+      box-shadow:0 0 0 3px rgba(43,108,176,0.1)
+    }
+    .form-actions{
+      margin-top:24px;
+      display:flex;
+      gap:12px;
+      justify-content:flex-end;
+      padding-top:16px;
+      border-top:1px solid #eee
+    }
+    .tour-actions{
+      margin-top:16px;
+      display:flex;
+      gap:8px;
+      justify-content:flex-end
+    }
+    .price{
+      font-size:18px;
+      font-weight:700;
+      color:#2b6cb0;
+      margin:8px 0
+    }
+    .date{
+      color:#d69e2e;
+      font-weight:600
+    }
+    .duration{
+      color:#666;
+      font-style:italic
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestión de Tours</h1>
+    <div>
+      <button class="btn-primary" onclick="openTourModal()">➕ Nuevo Tour</button>
+      <button class="btn-ghost" onclick="location.href='/'">Inicio</button>
+      <button class="btn-ghost" onclick="location.href='/reservas'">Mis Reservas</button>
+      <button class="btn-ghost" id="authBtn" onclick="handleAuth()">Iniciar Sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="message" style="margin-bottom:16px"></div>
+    <div id="tours" class="tours-grid"></div>
+  </main>
+
+  <!-- Modal para crear/editar tours -->
+  <div id="tourModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Nuevo Tour</h3>
+        <span class="close" onclick="closeTourModal()">&times;</span>
+      </div>
+      <form id="tourForm">
+        <input type="hidden" id="tourId" />
+        
+        <label for="nombre">Nombre del Tour:</label>
+        <input type="text" id="nombre" required placeholder="Ej: Tour por la Ciudad Histórica" />
+
+        <label for="descripcion">Descripción:</label>
+        <textarea id="descripcion" placeholder="Describe las actividades, lugares a visitar, etc."></textarea>
+
+        <label for="precio">Precio (USD):</label>
+        <input type="number" id="precio" min="0" step="0.01" required placeholder="100.00" />
+
+        <label for="duracionHoras">Duración (horas):</label>
+        <input type="number" id="duracionHoras" min="0.5" step="0.5" placeholder="4" />
+
+        <label for="fecha">Fecha del Tour:</label>
+        <input type="datetime-local" id="fecha" required />
+
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" onclick="closeTourModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="submitBtn">Crear Tour</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allTours = [];
+    let isAuthenticated = false;
+
+    // Verificar si el usuario está autenticado
+    function checkAuthentication() {
+      const token = localStorage.getItem('token');
+      isAuthenticated = !!token;
+      
+      if (!isAuthenticated) {
+        // Mostrar mensaje y ocultar botones de acción
+        showMessage('Debes iniciar sesión para gestionar tours', false);
+        hideActionButtons();
+      } else {
+        showActionButtons();
+      }
+      
+      return isAuthenticated;
+    }
+
+    function hideActionButtons() {
+      const newTourBtn = document.querySelector('.btn-primary');
+      if (newTourBtn && newTourBtn.textContent.includes('Nuevo Tour')) {
+        newTourBtn.style.display = 'none';
+      }
+    }
+
+    function showActionButtons() {
+      const newTourBtn = document.querySelector('.btn-primary');
+      if (newTourBtn && newTourBtn.textContent.includes('Nuevo Tour')) {
+        newTourBtn.style.display = 'inline-block';
+      }
+      
+      const authBtn = document.getElementById('authBtn');
+      if (authBtn) {
+        authBtn.textContent = 'Cerrar Sesión';
+        authBtn.style.backgroundColor = '#e53e3e';
+        authBtn.style.color = 'white';
+      }
+    }
+
+    function handleAuth() {
+      if (isAuthenticated) {
+        localStorage.removeItem('token');
+        showMessage('Sesión cerrada exitosamente');
+        setTimeout(() => location.href = '/login', 1500);
+      } else {
+        location.href = '/login';
+      }
+    }
+
+    function redirectToLogin() {
+      if (!isAuthenticated) {
+        showMessage('Debes iniciar sesión para realizar esta acción', false);
+        setTimeout(() => {
+          location.href = '/login';
+        }, 2000);
+        return true;
+      }
+      return false;
+    }
+
+    async function fetchTours() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/tours', { 
+          headers: { 'Authorization': token ? 'Bearer ' + token : '' }
+        });
+        
+        if (res.ok) {
+          allTours = await res.json();
+          renderTours(allTours);
+        } else {
+          showMessage('Error al cargar tours', false);
+        }
+      } catch (error) {
+        console.error('Error al cargar tours:', error);
+        showMessage('Error de conexión al cargar tours', false);
+      }
+    }
+
+    function renderTours(tours) {
+      const container = document.getElementById('tours');
+      container.innerHTML = '';
+      
+      if (!Array.isArray(tours) || tours.length === 0) {
+        container.innerHTML = '<div class="card"><p>No hay tours disponibles.</p></div>';
+        return;
+      }
+
+      tours.forEach(tour => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        const fecha = tour.fecha ? new Date(tour.fecha).toLocaleString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'Fecha no especificada';
+        
+        const duracion = tour.duracionHoras ? `${tour.duracionHoras} horas` : 'Duración no especificada';
+        
+        const actionsHtml = isAuthenticated ? 
+          `<div class="tour-actions">
+            <button class="btn-warning" onclick="editarTour('${tour._id}')">✏️ Editar</button>
+            <button class="btn-danger" onclick="eliminarTour('${tour._id}')">🗑️ Eliminar</button>
+          </div>` : 
+          `<div class="tour-actions">
+            <small style="color:#999; font-style:italic;">Inicia sesión para gestionar tours</small>
+          </div>`;
+
+        card.innerHTML = `
+          <h3>${escapeHtml(tour.nombre || 'Tour sin nombre')}</h3>
+          <div class="price">$${tour.precio || 0}</div>
+          <div class="small date">${fecha}</div>
+          <div class="small duration">${duracion}</div>
+          ${tour.descripcion ? `<p class="small">${escapeHtml(tour.descripcion)}</p>` : ''}
+          ${actionsHtml}
+        `;
+        
+        container.appendChild(card);
+      });
+    }
+
+    function openTourModal(tourId = null) {
+      if (redirectToLogin()) return;
+      
+      const modal = document.getElementById('tourModal');
+      const title = document.getElementById('modalTitle');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      if (tourId) {
+        const tour = allTours.find(t => t._id === tourId);
+        if (tour) {
+          title.textContent = 'Editar Tour';
+          submitBtn.textContent = 'Actualizar Tour';
+          document.getElementById('tourId').value = tourId;
+          document.getElementById('nombre').value = tour.nombre || '';
+          document.getElementById('descripcion').value = tour.descripcion || '';
+          document.getElementById('precio').value = tour.precio || '';
+          document.getElementById('duracionHoras').value = tour.duracionHoras || '';
+          
+          if (tour.fecha) {
+            const fecha = new Date(tour.fecha);
+            const fechaLocal = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000);
+            document.getElementById('fecha').value = fechaLocal.toISOString().slice(0, 16);
+          }
+        }
+      } else {
+        title.textContent = 'Nuevo Tour';
+        submitBtn.textContent = 'Crear Tour';
+        document.getElementById('tourForm').reset();
+        document.getElementById('tourId').value = '';
+      }
+      
+      modal.style.display = 'flex';
+    }
+
+    function closeTourModal() {
+      document.getElementById('tourModal').style.display = 'none';
+      document.getElementById('tourForm').reset();
+    }
+
+    function editarTour(id) {
+      if (redirectToLogin()) return;
+      openTourModal(id);
+    }
+
+    async function eliminarTour(id) {
+      if (redirectToLogin()) return;
+      
+      if (!confirm('¿Estás seguro de que quieres eliminar este tour? Esta acción no se puede deshacer.')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/tours/${id}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': token ? 'Bearer ' + token : '' }
+        });
+
+        if (res.ok) {
+          showMessage('Tour eliminado correctamente');
+          fetchTours();
+        } else {
+          const error = await res.json();
+          showMessage(error.message || 'Error al eliminar tour', false);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Error de conexión', false);
+      }
+    }
+
+    document.getElementById('tourForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const tourId = document.getElementById('tourId').value;
+      const nombre = document.getElementById('nombre').value.trim();
+      const descripcion = document.getElementById('descripcion').value.trim();
+      const precio = parseFloat(document.getElementById('precio').value);
+      const duracionHoras = parseFloat(document.getElementById('duracionHoras').value) || undefined;
+      const fecha = document.getElementById('fecha').value;
+
+      if (!nombre || !precio || !fecha) {
+        showMessage('Por favor completa todos los campos requeridos.', false);
+        return;
+      }
+
+      const tourData = {
+        nombre,
+        descripcion,
+        precio,
+        fecha: new Date(fecha).toISOString()
+      };
+
+      if (duracionHoras) {
+        tourData.duracionHoras = duracionHoras;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const method = tourId ? 'PUT' : 'POST';
+        const url = tourId ? `/api/tours/${tourId}` : '/api/tours';
+        
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? 'Bearer ' + token : ''
+          },
+          body: JSON.stringify(tourData)
+        });
+
+        if (response.ok) {
+          const message = tourId ? 'Tour actualizado correctamente' : 'Tour creado correctamente';
+          showMessage(message);
+          closeTourModal();
+          fetchTours();
+        } else {
+          const error = await response.json();
+          showMessage(error.message || 'Error al procesar el tour', false);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Error de conexión', false);
+      }
+    });
+
+    // Cerrar modal al hacer clic fuera de él
+    window.onclick = function(event) {
+      const modal = document.getElementById('tourModal');
+      if (event.target === modal) {
+        closeTourModal();
+      }
+    }
+
+    function showMessage(msg, ok = true) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = ok ? 'green' : 'red';
+      el.style.fontWeight = '600';
+      el.style.padding = '12px';
+      el.style.backgroundColor = ok ? '#f0fff4' : '#fed7d7';
+      el.style.border = `1px solid ${ok ? '#9ae6b4' : '#feb2b2'}`;
+      el.style.borderRadius = '8px';
+      setTimeout(() => {
+        el.textContent = '';
+        el.style.backgroundColor = '';
+        el.style.border = '';
+        el.style.padding = '';
+      }, 4000);
+    }
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return String(unsafe)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Inicializar la página
+    checkAuthentication();
+    fetchTours();
+  </script>
+</body>
+</html>

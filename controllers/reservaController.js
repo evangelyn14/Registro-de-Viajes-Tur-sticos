@@ -2,14 +2,15 @@ const Reserva = require('../models/Reserva');
 const Usuario = require('../models/Usuario');
 const Tours = require('../models/Tours');
 
-// GET todas las reservas
+// GET todas las reservas del usuario autenticado
 exports.getReservas = async (req, res) => {
   try {
-    const reservas = await Reserva.find()
+    const reservas = await Reserva.find({ usuario: req.usuarioId })
       .populate("usuario", "nombre email") // trae datos básicos del usuario
       .populate("tour", "nombre precio");  // trae datos básicos del tour
     res.json(reservas);
   } catch (err) {
+    console.error('Error al obtener reservas:', err);
     res.status(500).json({ error: 'Error del servidor'});
   }
 };
@@ -30,11 +31,23 @@ exports.getReservaById = async (req, res) => {
 // POST crear reserva
 exports.createReserva = async (req, res) => {
   try {
-    const reserva = new Reserva(req.body);
+    // Agregar el usuario autenticado a la reserva
+    const reservaData = {
+      ...req.body,
+      usuario: req.usuarioId // Viene del middleware de autenticación
+    };
+    
+    const reserva = new Reserva(reservaData);
     const nuevaReserva = await reserva.save();
+    
+    // Poblar la reserva con los datos del tour y usuario para la respuesta
+    await nuevaReserva.populate('usuario', 'nombre email');
+    await nuevaReserva.populate('tour', 'nombre precio');
+    
     res.status(201).json(nuevaReserva);
   } catch (err) {
-    res.status(400).json({ error: 'Error al crear reserva' });
+    console.error('Error al crear reserva:', err);
+    res.status(400).json({ error: 'Error al crear reserva', details: err.message });
   }
 };
 

@@ -5,8 +5,8 @@ const { verificarToken } = require('../seguridad/auth');
 
 router.get("/", tourController.getTours);
 router.get("/:id", tourController.getTourById);
-router.post("/", tourController.createTour);
-router.put("/:id", tourController.updateTour);
-router.delete("/:id", tourController.deleteTour);
+router.post("/", verificarToken, tourController.createTour);
+router.put("/:id", verificarToken, tourController.updateTour);
+router.delete("/:id", verificarToken, tourController.deleteTour);
 
 module.exports = router;

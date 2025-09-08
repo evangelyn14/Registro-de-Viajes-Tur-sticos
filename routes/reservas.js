@@ -3,10 +3,10 @@ const router = express.Router();
 const reservaController = require('../controllers/reservaController');
 const { verificarToken } = require('../seguridad/auth');
 
-router.get("/", reservaController.getReservas);
-router.get("/:id", reservaController.getReservaById);
-router.post("/", reservaController.createReserva);
-router.put("/:id", reservaController.updateReserva);
-router.delete("/:id", reservaController.deleteReserva);
+router.get("/", verificarToken, reservaController.getReservas);
+router.get("/:id", verificarToken, reservaController.getReservaById);
+router.post("/", verificarToken, reservaController.createReserva);
+router.put("/:id", verificarToken, reservaController.updateReserva);
+router.delete("/:id", verificarToken, reservaController.deleteReserva);
 
 module.exports = router;

@@ -6,7 +6,7 @@ const Tours = require('../models/Tours');
 // GET todos los tours
 exports.getTours = async (req, res) => {
   try {
-    const tours = await Tour.find();
+    const tours = await Tours.find();
     res.json(tours);
   } catch (err) {
     res.status(500).json({ error: 'Error del servidor'});
@@ -16,7 +16,7 @@ exports.getTours = async (req, res) => {
 // GET un tour por ID
 exports.getTourById = async (req, res) => {
   try {
-    const tour = await Tour.findById(req.params.id);
+    const tour = await Tours.findById(req.params.id);
     if (!tour) return res.status(404).json({ message: "Tour no encontrado" });
     res.json(tour);
   } catch (err) {
@@ -27,7 +27,7 @@ exports.getTourById = async (req, res) => {
 // POST crear tour
 exports.createTour = async (req, res) => {
   try {
-    const tour = new Tour(req.body);
+    const tour = new Tours(req.body);
     const nuevoTour = await tour.save();
     res.status(201).json(nuevoTour);
   } catch (err) {
@@ -38,7 +38,7 @@ exports.createTour = async (req, res) => {
 // PUT actualizar tour
 exports.updateTour = async (req, res) => {
   try {
-    const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const tour = await Tours.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!tour) return res.status(404).json({ message: "Tour no encontrado" });
     res.json(tour);
   } catch (err) {
@@ -49,7 +49,7 @@ exports.updateTour = async (req, res) => {
 // DELETE eliminar tour
 exports.deleteTour = async (req, res) => {
   try {
-    const tour = await Tour.findByIdAndDelete(req.params.id);
+    const tour = await Tours.findByIdAndDelete(req.params.id);
     if (!tour) return res.status(404).json({ message: "Tour no encontrado" });
     res.json({ message: "Tour eliminado correctamente" });
   } catch (err) {

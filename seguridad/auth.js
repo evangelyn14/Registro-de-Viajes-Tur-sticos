@@ -1,10 +1,17 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 function verificarToken(req, res, next) {
-
-
-const token = req.query.token || req.headers['authorization'].split(' ')[1];
- console.log(token)
+  let token = req.query.token;
+  
+  // Si no hay token en query, buscar en headers
+  if (!token && req.headers['authorization']) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
+  
+  console.log('Token recibido:', token);
  
   if (!token) {
     return res.status(401).json({ error: 'Token requerido' });
